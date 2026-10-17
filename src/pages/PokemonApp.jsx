@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+
+import { useState, useEffect } from "react";
 
 import { obtenerPokemones } from "../services/pokeapi";
 import PokemonCard from "../components/features/pokemon_api/PokemonCard";
@@ -7,68 +8,35 @@ import SearchBar from "../components/features/pokemon_api/SearchBar";
 
 function PokemonApp() {
   const [pokemones, setPokemones] = useState([]);
+  const [tipo, setTipo] = useState("Todos");
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(null);
-
-  const [tipoActivo, setTipoActivo] = useState("Todos");
-  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    obtenerPokemones(30, controller.signal)
-      .then(setPokemones)
-      .catch((err) => {
-        if (err.name !== "AbortError") setError(err.message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setCargando(false);
-      });
-
-    return () => controller.abort();
+    obtenerPokemones()
+      .then((datos) => setPokemones(datos))
+      .finally(() => setCargando(false));
   }, []);
 
-  const tiposUnicos = useMemo(
-    () => [...new Set(pokemones.flatMap((p) => p.tipos))].sort(),
-    [pokemones]
-  );
+  const tipos = [...new Set(pokemones.flatMap((p) => p.tipos))].sort();
 
-  const pokemonesFiltrados = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase();
-    return pokemones.filter(
-      (p) =>
-        (tipoActivo === "Todos" || p.tipos.includes(tipoActivo)) &&
-        p.nombre.includes(texto)
-    );
-  }, [pokemones, tipoActivo, busqueda]);
+  const filtrados = pokemones.filter((p) => {
+    const coincideTipo = tipo === "Todos" || p.tipos.includes(tipo);
+    return coincideTipo;
+  });
 
   return (
     <div className="app-container">
       <header className="app-header">
         <h1>Pokédex</h1>
-        <p>Explora pokémon usando la PokeAPI</p>
+        <p>Explora pokemon usando la PokeAPI</p>
       </header>
 
-      <SearchBar valor={busqueda} onCambiar={setBusqueda} />
-
-      <FilterBar
-        tipos={tiposUnicos}
-        tipoActivo={tipoActivo}
-        onSeleccionar={setTipoActivo}
-      />
+      <FilterBar tipos={tipos} tipoActivo={tipo} onSeleccionar={setTipo} />
 
       <main className="cards-grid">
-        {cargando && <p className="status">Cargando pokémon…</p>}
-
-        {error && <p className="status status--error">Error: {error}</p>}
-
-        {!cargando && !error && pokemonesFiltrados.length === 0 && (
-          <p className="no-results">No hay pokémon para esta búsqueda.</p>
+        {cargando ? (<p>Cargando pokemon...</p>) : 
+        filtrados.length === 0 ? (<p>No hay pokemon para esta busqueda.</p>) : (filtrados.map((pokemon) => <PokemonCard key={pokemon.id} {...pokemon} />)
         )}
-
-        {pokemonesFiltrados.map((pokemon) => (
-          <PokemonCard key={pokemon.id} {...pokemon} />
-        ))}
       </main>
     </div>
   );
